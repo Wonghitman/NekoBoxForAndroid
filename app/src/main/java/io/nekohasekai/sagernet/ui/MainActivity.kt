@@ -2,6 +2,8 @@ package io.nekohasekai.sagernet.ui
 
 import android.Manifest.permission.POST_NOTIFICATIONS
 import android.annotation.SuppressLint
+import android.app.ActivityManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -14,6 +16,7 @@ import androidx.activity.addCallback
 import androidx.annotation.IdRes
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceDataStore
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.navigation.NavigationView
@@ -48,6 +51,10 @@ import io.nekohasekai.sagernet.ktx.onMainDispatcher
 import io.nekohasekai.sagernet.ktx.parseProxies
 import io.nekohasekai.sagernet.ktx.readableMessage
 import io.nekohasekai.sagernet.ktx.runOnDefaultDispatcher
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import moe.matsuri.nb4a.utils.Util
 
 class MainActivity : ThemedActivity(),
@@ -102,7 +109,7 @@ class MainActivity : ThemedActivity(),
         if (intent?.action == Intent.ACTION_VIEW) {
             onNewIntent(intent)
         }
-
+        updatePrivacyMode()
         refreshNavMenu(DataStore.enableClashAPI)
 
         // sdk 33 notification
@@ -116,14 +123,25 @@ class MainActivity : ThemedActivity(),
                 )
             }
         }
+//        if (isPreview) {
+//            MaterialAlertDialogBuilder(this)
+//                .setTitle(BuildConfig.PRE_VERSION_NAME)
+//                .setMessage(R.string.preview_version_hint)
+//                .setPositiveButton(android.R.string.ok, null)
+//                .show()
+//        }
+    }
 
-        if (isPreview) {
-            MaterialAlertDialogBuilder(this)
-                .setTitle(BuildConfig.PRE_VERSION_NAME)
-                .setMessage(R.string.preview_version_hint)
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
-        }
+    override fun onResume() {
+        super.onResume()
+        updatePrivacyMode()
+    }
+
+    private fun updatePrivacyMode() {
+        val hide = DataStore.hideInBackground
+        // 2. 彻底从最近任务列表中移除（慎用，用户会切不回来）
+        val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        am.appTasks.forEach { it.setExcludeFromRecents(hide) }
     }
 
     fun refreshNavMenu(clashApi: Boolean) {
